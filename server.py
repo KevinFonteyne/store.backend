@@ -4,6 +4,8 @@ import random
 from data import me, catalog
 from flask_cors import CORS
 from config import db
+from bson import ObjectId
+
 
 app = Flask(__name__)
 CORS(app) # disable CORS, anyone can access the API
@@ -68,14 +70,21 @@ def save_product():
 
 @app.get("/api/count")
 def get_count():
-    count = len(catalog)
+    cursor = db.Products.find({})
+    products = []
+    for prod in cursor:
+        products.append(prod)
+
+    count = len(products)
     return json.dumps(count)
 
 @app.get("/api/catalog/total")
 def catalog_total():
     total = 0
-    for prod in catalog:
+    cursor = db.Products.find({})
+    for prod in cursor:
         total += prod["price"]
+
     return json.dumps(total)
 
 @app.get("/api/catalog/cheapest")        
@@ -87,66 +96,92 @@ def catalog_cheapest():
             cheapest = prod
     return json.dumps(cheapest)
 
+
+@app.post("/api/coupons")
+def save_coupon():
+    coupon = request.get_json()
+    # validations
+    if not "code" in coupon:
+        abort(400, "code is required")
+    if not "discount" in coupon:
+        abort(400, "discount is required")
+
+    db.CouponCodes.insert_one(coupon)
+    coupon = fix_id(coupon)
+    return json.dumps(coupon)        
+
+@app.get("/api/coupons")
+def get_coupons():
+    cursor = db.CouponCodes.find({})
+    results = []
+    for cp in cursor:
+        cp = fix_id(cp)
+        results.append(cp)
+
+    return json.dumps(results)    
+
 @app.get("/api/product/<id>")
 def get_product_by_id(id):
-    for prod in catalog:
-        if prod["_id"] == id:
-            return json.dumps(prod)
-
-    return json.dumps("Error:Invalid id")  
+    prod = db.Products.find_one({"_id": ObjectId(id)})
+    if not prod:
+        return abort(404, "Product not found")
+    prod = fix_id(prod)
+    return json.dumps(prod)
+    
 
 @app.get ("/api/products/<category>")
 def get_category(category):
+    cursor = db.Products.find({ "category" : category})
     results = []
-    for prod in catalog:
-        if prod["category"].lower() == category.lower():
-            results.append(prod)
+    for prod in cursor:
+        prod = fix_id(prod)
+        results.append(prod)
 
     return json.dumps(results)
 
 # step 1: create endpoint return {"you": rock }
-@app.get("/api/game/<pick>")
-def game(pick):
+# @app.get("/api/game/<pick>")
+# def game(pick):
     
-    num = random.randint(0,2)
-    pc = ""
-    if num == 0:
-        pc = "rock"
-    elif num == 1:
-        pc = "paper"
-    else:
-        pc = "scissors" 
+#     num = random.randint(0,2)
+#     pc = ""
+#     if num == 0:
+#         pc = "rock"
+#     elif num == 1:
+#         pc = "paper"
+#     else:
+#         pc = "scissors" 
 
 
-    winner =""           
-    if pick == "paper":
-        if pc == "rock":
-            winner = "you"
-        elif pc == "scissors":
-            winner = "pc"
-        else:
-            winner = "draw"
-    elif pick == "rock":
-        if pc == "scissors":
-            winner = "you"
-        elif pc == "paper":
-            winner = "pc"  
-        else:
-            winner = "draw" 
-    elif pick == "scissors":
-        if pc == "paper":
-            winner = "you"
-        elif pc == "rock":
-            winner = "pc"  
-        else:
-            winner = "draw"                     
-    results = {
-        "you": pick,
-        "pc": pc,
-        "winner": winner
-    }
+#     winner =""           
+#     if pick == "paper":
+#         if pc == "rock":
+#             winner = "you"
+#         elif pc == "scissors":
+#             winner = "pc"
+#         else:
+#             winner = "draw"
+#     elif pick == "rock":
+#         if pc == "scissors":
+#             winner = "you"
+#         elif pc == "paper":
+#             winner = "pc"  
+#         else:
+#             winner = "draw" 
+#     elif pick == "scissors":
+#         if pc == "paper":
+#             winner = "you"
+#         elif pc == "rock":
+#             winner = "pc"  
+#         else:
+#             winner = "draw"                     
+#     results = {
+#         "you": pick,
+#         "pc": pc,
+#         "winner": winner
+#     }
 
-    return json.dumps(results)
+#     return json.dumps(results)
 
 
 # step 2: generate a random number between 0 and 2
