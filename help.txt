@@ -34,3 +34,10 @@ flask run
 
 # official way
 flask --app server --debug run
+
+
+#CORS install
+python -m pip install flask-cors
+
+# pymongo install
+python -m pip install flask-pymongo pymongo "pymongo[srv]" certifi

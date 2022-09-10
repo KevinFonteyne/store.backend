@@ -2,17 +2,35 @@ from flask import Flask, request, abort
 import json
 import random
 from data import me, catalog
+from flask_cors import CORS
+from config import db
 
 app = Flask(__name__)
+CORS(app) # disable CORS, anyone can access the API
+
+@app.get('/')
+def home():
+    return "Hello from flask!"
 
 @app.get ("/api/about")
 def get_about_me():
     about = me
     return json.dumps(about)
 
+def fix_id(obj):
+    obj["_id"] = str(obj["_id"])
+    return obj
+
 @app.get("/api/catalog")   
 def get_catalog():
-    return json.dumps(catalog)
+    cursor = db.Products.find({}) # read all products
+    results = []
+    for prod in cursor:
+        prod = fix_id(prod)
+        results.append(prod)
+
+    return json.dumps(results)   
+
 
 @app.post("/api/catalog")
 def save_product():
@@ -21,7 +39,7 @@ def save_product():
     if not "title" in product:
         return abort (400, "ERROR: Title is required")
     # title should have at least 5 characters 
-    if len(product["title"]) < 5:
+    if len(product["title"]) < 2:
         return abort (400, "ERROR: Title is too short")
     
 
@@ -33,11 +51,15 @@ def save_product():
         return abort (400, "ERROR: Price must be greater than 1")
     
     # assigns a unique _id
-    product["_id"] =  random.randint(100, 100000) 
-    catalog.append(product)
+    # product["_id"] =  random.randint(100, 100000) 
+    # catalog.append(product)
+    db.Products.insert_one(product)
+    
+    # fix _id
+    product["_id"] = str(product["_id"]) 
 
 
-    return product
+    return json.dumps(product)
 
 
 
